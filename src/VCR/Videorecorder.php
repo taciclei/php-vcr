@@ -73,11 +73,6 @@ class Videorecorder
         $this->factory = $factory;
     }
 
-    public function setEventDispatcher(EventDispatcherInterface $dispatcher): void
-    {
-        $this->eventDispatcher = $dispatcher;
-    }
-
     public function getEventDispatcher(): EventDispatcherInterface
     {
         if (!$this->eventDispatcher) {
@@ -95,15 +90,16 @@ class Videorecorder
      */
     private function dispatch(Event $event, $eventName = null): Event
     {
-        if (class_exists(\Symfony\Component\EventDispatcher\Event::class)) {
+        // Symfony 4.3 introduces a breaking change (in a minor release!) in the parameter order of the dispatch method.
+        // We need to check which version of the dispatcher we are using!
+        $r = new \ReflectionMethod($this->getEventDispatcher(), 'dispatch');
+        $param2 = $r->getParameters()[1] ?? null;
+
+        if (!$param2 || !$param2->hasType() || $param2->getType()->isBuiltin()) {
+            $res = $this->getEventDispatcher()->dispatch($event, $eventName);
+        } else {
             $res = $this->getEventDispatcher()->dispatch($eventName, $event);
-
-            Assertion::isInstanceOf($res, Event::class);
-
-            return $res;
         }
-
-        $res = $this->getEventDispatcher()->dispatch($event, $eventName);
 
         Assertion::isInstanceOf($res, Event::class);
 
